@@ -180,7 +180,7 @@ compute.Venn <- function(V,doWeights=TRUE,doEuler=FALSE,type) {
 	}        
 	C3 <-switch(type,
 		AWFE=,AWFEscale=,battle=,cog=compute.AWFE(V,type=type),
-		ChowRuskey=,compute.CR(V,doWeights),
+		ChowRuskey=compute.CR(V,doWeights),
 		circles=
 			if (nSets==2) { compute.C2(V,doWeights,doEuler) 
 			}else if (nSets==3) {compute.C3(V,doWeights)
