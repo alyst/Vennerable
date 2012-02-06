@@ -105,24 +105,24 @@ UpViewports <- function() {
 	upViewport()
 }
 
-VennThemes<- function(drawing,colourAlgorithm,increasingLineWidth) {
+VennThemes<- function(drawing,colourAlgorithm,setColours,increasingLineWidth) {
 	gpList <- list()
 	if (is.null(gpList[["Face"]])) {
-		gpList[["Face"]]<- FaceColours(drawing=drawing,colourAlgorithm=colourAlgorithm)
+		gpList[["Face"]]<- FaceColours(drawing=drawing,colourAlgorithm=colourAlgorithm,setColours=setColours)
 	}
 	if (is.null(gpList[["FaceText"]])) {
-		gpList[["FaceText"]] <- FaceTextColours(drawing=drawing,colourAlgorithm=colourAlgorithm)
+		gpList[["FaceText"]] <- FaceTextColours(drawing=drawing,colourAlgorithm=colourAlgorithm,setColours=setColours)
 	}
 	if (is.null(gpList[["Set"]])) {
-		gpList[["Set"]] <- SetColours(drawing=drawing,colourAlgorithm=colourAlgorithm,increasingLineWidth)
+		gpList[["Set"]] <- SetColours(drawing=drawing,colourAlgorithm=colourAlgorithm,setColours=setColours,increasingLineWidth)
 	}
 	if (is.null(gpList[["SetText"]])) {
-		gpList[["SetText"]] <- SetTextColours(drawing=drawing)
+		gpList[["SetText"]] <- SetTextColours(drawing=drawing,setColours=setColours)
 	}
 	gpList
 }
 
-FaceColours <- function(drawing,faceNames,colourAlgorithm) {
+FaceColours <- function(drawing,faceNames,colourAlgorithm,setColours) {
 	if(missing(faceNames)) {	
 		faceNames <- .faceNames(drawing)
 	}
@@ -133,6 +133,7 @@ FaceColours <- function(drawing,faceNames,colourAlgorithm) {
 	nFaces <- length(faceNames)
 	nSignatures <- length(unique(faceSignatures))
 	DarkMatterColour <- "pink"
+    # n of intersecting sets per face
 	setcounts <- sort(sapply(faceSignatures,function(sig){
 			sigs <- strsplit(sig,"")[[1]]
 			setcount <- sum(as.numeric(sigs))
@@ -146,10 +147,12 @@ FaceColours <- function(drawing,faceNames,colourAlgorithm) {
 		}
 	}
 	if (colourAlgorithm=="signature") {
+		# TODO: use setColours
 		countmax <- max(setcounts)
 		fillcols <- c(DarkMatterColour ,brewer.pal(countmax,'YlOrRd'))
 		setcolours <-fillcols[1+setcounts]; names(setcolours) <- names(setcounts)
 	} else if (colourAlgorithm=="sequential"){
+		# TODO: use setColours
 		fillcols <- brewer.pal(12,"Set3")
 		if (nSignatures > length(fillcols)) {
 			fillcols <- rep(fillcols,times=1+nSignatures/length(fillcols))
@@ -157,9 +160,10 @@ FaceColours <- function(drawing,faceNames,colourAlgorithm) {
 		setcolours <- c(DarkMatterColour,fillcols)[1:length(setcounts)]
 		names(setcolours ) <- names(setcounts)
 	} else if (colourAlgorithm=="binary"){
-		setcolours <- ifelse(setcounts %%2 == 0 , "white", "blue")
-	} 
-
+        oddeven <- c( "blue", "white" )
+        if ( length(setColours) > 2 ) oddeven <- setColours[1:2]
+		setcolours <- oddeven[ ifelse(setcounts %% 2 == 1, 1, 2 ) ]
+    }
 	gp <- lapply(names(faceSignatures),function(x)gpar(col=setcolours [x],fill=setcolours [x],lty=0)); 	
 	names(gp) <- names(faceSignatures)
 	gp
@@ -167,8 +171,8 @@ FaceColours <- function(drawing,faceNames,colourAlgorithm) {
 
 
 
-FaceTextColours <- function(drawing,faceNames,colourAlgorithm) {
-	gp <- FaceColours(drawing=drawing,faceNames=faceNames,colourAlgorithm=colourAlgorithm)
+FaceTextColours <- function(drawing,faceNames,colourAlgorithm,setColours) {
+	gp <- FaceColours(drawing=drawing,faceNames=faceNames,colourAlgorithm=colourAlgorithm,setColours=setColours)
 	if (!missing(colourAlgorithm)) {
 		if ( colourAlgorithm=="binary") {
 			bcols <- unique(sapply(gp,function(x)x$col))
@@ -189,8 +193,8 @@ FaceTextColours <- function(drawing,faceNames,colourAlgorithm) {
 	gp
 }
 
-SetTextColours <- function(drawing) {
-	gp <- SetColours(drawing=drawing)
+SetTextColours <- function(drawing,colourAlgorithm,setColours) {
+	gp <- SetColours(drawing=drawing,colourAlgorithm=colourAlgorithm,setColours=setColours)
 #	gp <- lapply(gp,function(agp){res<-agp;res$col<-"black";res$fill<-res$col;res})
 	Nsets <- NumberOfSets(drawing)
 	fontsize <- if (Nsets<=3) { 20 } else {10 }
@@ -200,20 +204,31 @@ SetTextColours <- function(drawing) {
 
 
 
-SetColours <- function(drawing,colourAlgorithm,increasingLineWidth) {
+SetColours <- function(drawing,colourAlgorithm,setColours,increasingLineWidth) {
 	if (missing(colourAlgorithm)) { colourAlgorithm <- "sequential"}
 	if (missing(increasingLineWidth)) { increasingLineWidth <- FALSE}
 	nSets <-length(drawing@setList)
 	if (colourAlgorithm=="binary") {
-		setcolours <-rep("blue",nSets)
+        setcol <- ifelse( missing( setColours ), "blue", setColours[1] )
+		setcolours <-rep(setcol,nSets)
 		names(setcolours) <- names(drawing@setList)
 	} else {
-		fillcols <- brewer.pal(9,'Set1')
-		if (nSets > length(fillcols)) {
-			fillcols <- rep(fillcols,times=1+nSets/length(fillcols))
-		}
- 		setcolours <-fillcols[1:nSets]; 
-		names(setcolours) <- names(drawing@setList)
+        setcolours <- brewer.pal(min(9, length(drawing@setList) ),"Set1")
+        if (length(drawing@setList) > length(setcolours)) {
+            setcolours <- rep(setcolours,length.out=length(drawing@setList))
+        }
+        names(setcolours) <- names(drawing@setList)
+        if (!missing(setColours)) {
+            setLabels <- VennGetSetLabels(drawing)
+            for ( setName in names( setColours ) ) {
+                mask <- setLabels$Label == setName
+                if ( any( mask ) ) {
+                    setcolours[ mask ] <- setColours[ setName ]
+                } else {
+                    warning( 'Set \'', setName, '\' not found' )
+                }
+            }
+        }
 	}
 	gpList <- lapply(names(setcolours ),function(x)gpar(col=setcolours [[x]],fill=NA,lty=1,lwd=3)); 	
 	if (increasingLineWidth) {
