@@ -225,7 +225,7 @@ SetColours <- function(drawing,colourAlgorithm,increasingLineWidth) {
 
 
 PlotVennGeometry <- function(C3,gpList,show=list(FaceText="weight")) {
-	show.default <- list(Universe=TRUE,Sets=TRUE,SetLabels=TRUE,
+	show.default <- list(Universe=FALSE,Sets=TRUE,SetLabels=TRUE,
 		DarkMatter=FALSE,
 		Faces=TRUE,
 		FaceText="weight")
