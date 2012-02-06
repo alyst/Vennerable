@@ -163,6 +163,40 @@ FaceColours <- function(drawing,faceNames,colourAlgorithm,setColours) {
         oddeven <- c( "blue", "white" )
         if ( length(setColours) > 2 ) oddeven <- setColours[1:2]
 		setcolours <- oddeven[ ifelse(setcounts %% 2 == 1, 1, 2 ) ]
+	} else if (colourAlgorithm=="mix"){
+        setcolours <- brewer.pal(min(9, length(drawing@setList) ),"Set1")
+        if (length(drawing@setList) > length(setcolours)) {
+            setcolours <- rep(setcolours,length.out=length(drawing@setList))
+        }
+        names(setcolours) <- names(drawing@setList)
+        if (!missing(setColours)) {
+            setLabels <- VennGetSetLabels(drawing)
+            for ( setName in names( setColours ) ) {
+                mask <- setLabels$Label == setName
+                if ( any( mask ) ) {
+                    setcolours[ mask ] <- setColours[ setName ]
+                } else {
+                    warning( 'Set \'', setName, '\' not found' )
+                }
+            }
+        }
+        setcolours <- sapply(faceSignatures,function(sig){
+                sig_mask <- as.logical( as.numeric( strsplit(sig,"")[[1]] ) )
+                colors2mix <- setcolours[ sig_mask ]
+                if ( length( colors2mix ) == 0 ) {
+                    color <- "white"
+                } else {
+                    # mix colors of all intersecting sets
+                    color <- hex2RGB( colors2mix[[1]] )
+                    if ( length(colors2mix) > 1 ) {
+                        for ( i in 2:length(colors2mix) ) {
+                            color <- mixcolor( (i-1)/i, color, hex2RGB( colors2mix[[i]] ), class(LUV(0,0,0)) )
+                        }
+                    }
+                    color <- hex( color )
+                }
+                return ( color )
+        })
     }
 	gp <- lapply(names(faceSignatures),function(x)gpar(col=setcolours [x],fill=setcolours [x],lty=0)); 	
 	names(gp) <- names(faceSignatures)
